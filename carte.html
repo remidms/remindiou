@@ -97,18 +97,30 @@
   let markers = {}; // { india: marker, remi: marker }
   let positions = {}; // { india: {lat, lon}, remi: {lat, lon} }
 
-  // Ajouter un marqueur coloré
+  // Définition des icônes personnalisées avec photos
+  const icons = {
+    india: L.icon({
+      iconUrl: 'india.jpg',
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],  // point bas de l'icône
+      popupAnchor: [0, -40]
+    }),
+    remi: L.icon({
+      iconUrl: 'remi.jpg',
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -40]
+    })
+  };
+
+  // Ajouter un marqueur avec icône photo
   function addMarker(lat, lon, user) {
-    const colors = { india: 'pink', remi: 'blue' };
     if (markers[user]) {
       map.removeLayer(markers[user]);
     }
-    const marker = L.circleMarker([lat, lon], {
-      radius: 10,
-      color: colors[user],
-      fillColor: colors[user],
-      fillOpacity: 0.8
-    }).addTo(map).bindPopup(`${user.charAt(0).toUpperCase() + user.slice(1)} est ici`);
+    const marker = L.marker([lat, lon], { icon: icons[user] })
+      .addTo(map)
+      .bindPopup(`${user.charAt(0).toUpperCase() + user.slice(1)} est ici`);
     markers[user] = marker;
   }
 
