@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calendrier d'amour</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      text-align: center;
+      background: #ffe6f0;
+      color: #333;
+    }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #ff3366;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    h1 {
+      margin-bottom: 1rem;
+      color: #ff3366;
+    }
+    #calendar {
+      max-width: 350px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #calendar table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #calendar th, #calendar td {
+      width: 14.28%;
+      padding: 8px;
+      text-align: center;
+      border: 1px solid #ddd;
+    }
+    #calendar th {
+      background: #ff6699;
+      color: white;
+    }
+    #calendar td:hover {
+      background: #ffe6f0;
+      cursor: pointer;
+    }
+    .today {
+      background: #ff3366;
+      color: white;
+      border-radius: 50%;
+      font-weight: bold;
+    }
+    .nav-btn {
+      cursor: pointer;
+      color: #ff3366;
+      font-weight: bold;
+      font-size: 1.2rem;
+      user-select: none;
+      margin: 0 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html">Accueil</a> |
+    <a href="calendrier.html">Calendrier</a>
+  </nav>
+
+  <h1>Calendrier d'amour</h1>
+
+  <div id="calendar">
+    <div>
+      <span class="nav-btn" id="prev">&#8592;</span>
+      <span id="monthYear"></span>
+      <span class="nav-btn" id="next">&#8594;</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Dim</th><th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th>
+        </tr>
+      </thead>
+      <tbody id="calendarBody">
+        <!-- Les jours seront insérés ici -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const calendarBody = document.getElementById('calendarBody');
+    const monthYear = document.getElementById('monthYear');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+
+    let today = new Date();
+    let currentMonth = today.getMonth();
+    let currentYear = today.getFullYear();
+
+    function renderCalendar(month, year) {
+      calendarBody.innerHTML = '';
+      monthYear.textContent = `${new Date(year, month).toLocaleString('fr-FR', { month: 'long' })} ${year}`;
+
+      // Premier jour du mois
+      let firstDay = new Date(year, month, 1).getDay(); // 0 = dimanche
+
+      // Nombre de jours dans le mois
+      let daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let date = 1;
+      for(let i=0; i<6; i++) { // 6 semaines max
+        let row = document.createElement('tr');
+
+        for(let j=0; j<7; j++) {
+          let cell = document.createElement('td');
+
+          if(i === 0 && j < firstDay) {
+            cell.textContent = '';
+          } else if(date > daysInMonth) {
+            cell.textContent = '';
+          } else {
+            cell.textContent = date;
+            // Marquer aujourd'hui
+            if(year === today.getFullYear() && month === today.getMonth() && date === today.getDate()) {
+              cell.classList.add('today');
+            }
+
+            // Tu peux ici ajouter un événement au clic si tu veux
+            cell.addEventListener('click', () => {
+              alert(`Tu as cliqué sur le ${date} ${monthYear.textContent}`);
+            });
+
+            date++;
+          }
+          row.appendChild(cell);
+        }
+        calendarBody.appendChild(row);
+      }
+    }
+
+    prevBtn.addEventListener('click', () => {
+      currentMonth--;
+      if(currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      renderCalendar(currentMonth, currentYear);
+    });
+
+    nextBtn.addEventListener('click', () => {
+      currentMonth++;
+      if(currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      renderCalendar(currentMonth, currentYear);
+    });
+
+    renderCalendar(currentMonth, currentYear);
+  </script>
+
+</body>
+</html>
