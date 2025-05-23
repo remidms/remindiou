@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Page Photos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    nav {
+      padding: 10px 15px;
+      background-color: #eee;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    nav a {
+      margin-right: 15px;
+      color: black;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    nav a.active {
+      text-decoration: underline;
+      font-weight: bolder;
+      color: #000;
+    }
+    #gallery img {
+      max-width: 150px;
+      margin: 10px;
+      border-radius: 8px;
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+
+<nav>
+    <a href="index.html">Accueil</a>
+    <a href="calendrier.html">Calendrier</a>
+    <a href="carte.html">Carte</a>  <!-- <-- Lien ajouté -->
+    <a href="photos.html">Photos</a>
+  </nav>
+
+<h1>Ajouter des photos</h1>
+
+<input type="file" id="photo-input" accept="image/*" multiple />
+<button id="upload-btn">Uploader</button>
+<div id="status"></div>
+
+<h2>Galerie</h2>
+<div id="gallery"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-storage-compat.js"></script>
+
+<script>
+  // Config Firebase (à remplacer par la tienne)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
+    authDomain: "webremindiou.firebaseapp.com",
+    projectId: "webremindiou",
+    storageBucket: "webremindiou.appspot.com",
+    messagingSenderId: "1041124249181",
+    appId: "1:104112424918fbc101314d86347b4",
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  const photoInput = document.getElementById('photo-input');
+  const uploadBtn = document.getElementById('upload-btn');
+  const status = document.getElementById('status');
+  const gallery = document.getElementById('gallery');
+
+  // Fonction pour afficher toutes les photos depuis Firestore
+  async function loadPhotos() {
+    gallery.innerHTML = '';
+    try {
+      const snapshot = await db.collection('photos').orderBy('uploadedAt', 'desc').get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const img = document.createElement('img');
+        img.src = data.url;
+        img.alt = data.name || 'Photo';
+        gallery.appendChild(img);
+      });
+    } catch (e) {
+      console.error("Erreur chargement photos:", e);
+    }
+  }
+
+  // Upload plusieurs fichiers
+  uploadBtn.addEventListener('click', async () => {
+    const files = photoInput.files;
+    if (files.length === 0) {
+      status.textContent = "Sélectionnez au moins une photo.";
+      return;
+    }
+    status.textContent = "Upload en cours...";
+    for (const file of files) {
+      const storageRef = storage.ref().child('photos/' + Date.now() + '_' + file.name);
+      try {
+        // Upload fichier
+        await storageRef.put(file);
+        // Récupérer l'URL de téléchargement
+        const url = await storageRef.getDownloadURL();
+        // Sauvegarder l'URL dans Firestore
+        await db.collection('photos').add({
+          url,
+          name: file.name,
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        status.textContent = `Photo "${file.name}" uploadée avec succès.`;
+      } catch (error) {
+        console.error('Erreur upload:', error);
+        status.textContent = `Erreur upload de "${file.name}".`;
+      }
+    }
+    // Recharge la galerie après upload
+    loadPhotos();
+  });
+
+  // Charger la galerie au démarrage
+  loadPhotos();
+</script>
+
+</body>
+</html>
