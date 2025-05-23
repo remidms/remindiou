@@ -1,187 +1,241 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Calendrier d'amour</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      text-align: center;
-      background-image: url('accueil.jpg'); /* même image de fond */
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      color: #fff;
-      min-height: 100vh;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      position: relative;
-      text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
-    }
-    nav {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-    }
-    nav a {
-      color: #fff;
-      text-decoration: none;
-      margin-right: 15px;
-      font-weight: bold;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-    }
-    nav a:hover {
-      text-decoration: underline;
-    }
-    h1 {
-      margin-bottom: 1rem;
-      color: #fff;
-      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
-    }
-    #calendar {
-      max-width: 350px;
-      margin: 0 auto;
-      background: rgba(255, 255, 255, 0.85); /* fond clair translucide pour lisibilité */
-      border-radius: 10px;
-      padding: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      color: #333;
-      user-select: none;
-    }
-    #calendar table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    #calendar th, #calendar td {
-      width: 14.28%;
-      padding: 8px;
-      text-align: center;
-      border: 1px solid #ddd;
-    }
-    #calendar th {
-      background: #ff6699;
-      color: white;
-    }
-    #calendar td:hover {
-      background: #ffe6f0;
-      cursor: pointer;
-    }
-    .today {
-      background: #ff3366;
-      color: white;
-      border-radius: 50%;
-      font-weight: bold;
-    }
-    .nav-btn {
-      cursor: pointer;
-      color: #ff3366;
-      font-weight: bold;
-      font-size: 1.2rem;
-      user-select: none;
-      margin: 0 15px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calendrier d'amour 💖</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-image: url('amour.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: white;
+    margin: 0;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  nav a {
+    color: white;
+    margin-right: 1rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  h1, h2 {
+    text-align: center;
+  }
+  #calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    max-width: 700px;
+    margin: 1rem auto;
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 10px;
+  }
+  .day {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 80px;
+    position: relative;
+  }
+  .day-number {
+    font-weight: bold;
+  }
+  .event {
+    background: #ff6f91;
+    color: white;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    padding: 2px 4px;
+    border-radius: 5px;
+    cursor: default;
+  }
+  form {
+    max-width: 400px;
+    margin: 1rem auto;
+    background: rgba(0,0,0,0.3);
+    padding: 1rem;
+    border-radius: 10px;
+  }
+  label, input, button {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 1rem;
+  }
+  button {
+    background: #ff6f91;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #ff3c78;
+  }
+</style>
 </head>
 <body>
 
-  <nav>
-    <a href="index.html">Accueil</a>
-    <a href="calendrier.html">Calendrier</a>
-  </nav>
+<nav>
+  <a href="index.html">Accueil</a>
+  <a href="calendrier.html">Calendrier</a>
+</nav>
 
-  <h1>Calendrier d'amour</h1>
+<h1>Calendrier d'amour 💖</h1>
 
-  <div id="calendar">
-    <div>
-      <span class="nav-btn" id="prev">&#8592;</span>
-      <span id="monthYear"></span>
-      <span class="nav-btn" id="next">&#8594;</span>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Dim</th><th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th>
-        </tr>
-      </thead>
-      <tbody id="calendarBody">
-        <!-- Les jours seront insérés ici -->
-      </tbody>
-    </table>
-  </div>
+<form id="form-evenement">
+  <label>
+    Date de l'événement :
+    <input type="date" id="dateInput" required />
+  </label>
+  <label>
+    Titre de l'événement :
+    <input type="text" id="titleInput" placeholder="Ex: Anniversaire" required />
+  </label>
+  <button type="submit">Ajouter l'événement</button>
+</form>
 
-  <script>
-    const calendarBody = document.getElementById('calendarBody');
-    const monthYear = document.getElementById('monthYear');
-    const prevBtn = document.getElementById('prev');
-    const nextBtn = document.getElementById('next');
+<div id="calendar"></div>
 
-    let today = new Date();
-    let currentMonth = today.getMonth();
-    let currentYear = today.getFullYear();
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
-    function renderCalendar(month, year) {
-      calendarBody.innerHTML = '';
-      monthYear.textContent = `${new Date(year, month).toLocaleString('fr-FR', { month: 'long' })} ${year}`;
+  const firebaseConfig = {
+    apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
+    authDomain: "webremindiou.firebaseapp.com",
+    projectId: "webremindiou",
+    storageBucket: "webremindiou.firebasestorage.app",
+    messagingSenderId: "1041124249181",
+    appId: "1:104112424918fbc101314d86347b4",
+    measurementId: "G-XCS133MJ63"
+  };
 
-      // Premier jour du mois
-      let firstDay = new Date(year, month, 1).getDay(); // 0 = dimanche
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-      // Nombre de jours dans le mois
-      let daysInMonth = new Date(year, month + 1, 0).getDate();
+  const calendarEl = document.getElementById('calendar');
+  const form = document.getElementById('form-evenement');
+  const dateInput = document.getElementById('dateInput');
+  const titleInput = document.getElementById('titleInput');
 
-      let date = 1;
-      for(let i=0; i<6; i++) { // 6 semaines max
-        let row = document.createElement('tr');
+  let currentYear, currentMonth;
 
-        for(let j=0; j<7; j++) {
-          let cell = document.createElement('td');
+  // Fonction pour créer le calendrier et afficher les events
+  async function createCalendar(year, month) {
+    calendarEl.innerHTML = '';
 
-          if(i === 0 && j < firstDay) {
-            cell.textContent = '';
-          } else if(date > daysInMonth) {
-            cell.textContent = '';
-          } else {
-            cell.textContent = date;
-            // Marquer aujourd'hui
-            if(year === today.getFullYear() && month === today.getMonth() && date === today.getDate()) {
-              cell.classList.add('today');
-            }
-
-            cell.addEventListener('click', () => {
-              alert(`Tu as cliqué sur le ${date} ${monthYear.textContent}`);
-            });
-
-            date++;
-          }
-          row.appendChild(cell);
-        }
-        calendarBody.appendChild(row);
-      }
+    // Titre des jours
+    const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    for(let dayName of daysOfWeek) {
+      const dayHeader = document.createElement('div');
+      dayHeader.textContent = dayName;
+      dayHeader.style.fontWeight = 'bold';
+      dayHeader.style.textAlign = 'center';
+      calendarEl.appendChild(dayHeader);
     }
 
-    prevBtn.addEventListener('click', () => {
-      currentMonth--;
-      if(currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-      }
-      renderCalendar(currentMonth, currentYear);
+    // Date du premier jour du mois (lundi = 1, dimanche = 7)
+    const firstDay = new Date(year, month, 1);
+    let startDay = firstDay.getDay();
+    if(startDay === 0) startDay = 7; // dimanche = 7
+
+    // Nombre de jours dans le mois
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+
+    // Ajouter cases vides avant le 1er jour (si le mois ne commence pas lundi)
+    for(let i=1; i<startDay; i++) {
+      const emptyCell = document.createElement('div');
+      calendarEl.appendChild(emptyCell);
+    }
+
+    // Récupérer tous les événements du mois depuis Firestore
+    const firstDateStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
+    const lastDateStr = `${year}-${String(month+1).padStart(2,'0')}-${daysInMonth}`;
+
+    // Firestore ne supporte pas directement des "between" sur dates string,
+    // on stockera la date au format "YYYY-MM-DD" pour faciliter la comparaison.
+
+    const eventsQuery = query(
+      collection(db, "evenements"),
+      where("date", ">=", firstDateStr),
+      where("date", "<=", lastDateStr),
+      orderBy("date")
+    );
+
+    const eventsSnapshot = await getDocs(eventsQuery);
+    const events = {};
+    eventsSnapshot.forEach(doc => {
+      const ev = doc.data();
+      if(!events[ev.date]) events[ev.date] = [];
+      events[ev.date].push(ev.title);
     });
 
-    nextBtn.addEventListener('click', () => {
-      currentMonth++;
-      if(currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
-      renderCalendar(currentMonth, currentYear);
-    });
+    // Créer les cases pour chaque jour du mois
+    for(let day=1; day<=daysInMonth; day++) {
+      const dayCell = document.createElement('div');
+      dayCell.classList.add('day');
 
-    renderCalendar(currentMonth, currentYear);
-  </script>
+      const dayNum = document.createElement('div');
+      dayNum.classList.add('day-number');
+      dayNum.textContent = day;
+      dayCell.appendChild(dayNum);
+
+      // Afficher les événements du jour
+      const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if(events[dayStr]) {
+        for(const title of events[dayStr]) {
+          const eventEl = document.createElement('div');
+          eventEl.classList.add('event');
+          eventEl.textContent = title;
+          dayCell.appendChild(eventEl);
+        }
+      }
+
+      calendarEl.appendChild(dayCell);
+    }
+  }
+
+  // Ajout d'un événement à Firestore
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const dateVal = dateInput.value;  // ex: "2024-08-14"
+    const titleVal = titleInput.value.trim();
+
+    if(!dateVal || !titleVal) {
+      alert("Merci de remplir tous les champs.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "evenements"), {
+        date: dateVal,
+        title: titleVal
+      });
+      alert("Événement ajouté !");
+      form.reset();
+
+      // Recréer calendrier avec les nouveaux événements
+      createCalendar(currentYear, currentMonth);
+    } catch (err) {
+      alert("Erreur lors de l'ajout : " + err.message);
+    }
+  });
+
+  // Initialisation : afficher calendrier du mois courant
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+
+  createCalendar(currentYear, currentMonth);
+
+</script>
 
 </body>
 </html>
