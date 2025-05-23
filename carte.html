@@ -6,7 +6,29 @@
   <title>Carte et Enregistrement des Positions</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    #map { height: 80vh; margin-bottom: 1rem; }
+    nav {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 1000;
+    }
+    nav a {
+      color: #000; /* texte noir */
+      text-decoration: none;
+      margin-right: 15px;
+      font-weight: bold;
+      text-shadow: none;
+      font-family: Arial, sans-serif;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    #map { 
+      height: 80vh; 
+      margin-top: 60px; /* pour laisser la place au nav */
+      margin-bottom: 1rem; 
+    }
     #user-select {
       margin: 10px;
       font-size: 1.1rem;
@@ -14,23 +36,7 @@
     #status {
       margin: 10px;
       font-weight: bold;
-    }
-    nav {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      z-index: 1000; /* pour être au-dessus de la carte */
-    }
-    nav a {
-      color: #007bff;
-      text-decoration: none;
-      margin-right: 15px;
-      font-weight: bold;
       font-family: Arial, sans-serif;
-      font-size: 1.1rem;
-    }
-    nav a:hover {
-      text-decoration: underline;
     }
   </style>
 </head>
@@ -164,7 +170,6 @@
 
     // Au chargement de la page, on charge les positions stockées
     loadPositions();
-
   </script>
 
 </body>
