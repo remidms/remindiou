@@ -48,6 +48,30 @@
   </style>
 </head>
 <body>
+<form id="form-lieu" style="max-width: 900px; margin: 20px auto; background: #eee; padding: 15px; border-radius: 8px;">
+  <h3>Ajouter un lieu marquant</h3>
+  <label>
+    Latitude:
+    <input type="number" step="any" id="latInput" required />
+  </label>
+  <br />
+  <label>
+    Longitude:
+    <input type="number" step="any" id="lonInput" required />
+  </label>
+  <br />
+  <label>
+    Texte à afficher :
+    <input type="text" id="popupTextInput" required />
+  </label>
+  <br />
+  <label>
+    Icône (image PNG/JPG, max 1Mo) :
+    <input type="file" id="iconInput" accept="image/png, image/jpeg" />
+  </label>
+  <br />
+  <button type="submit">Ajouter le lieu</button>
+</form>
 
 <nav>
     <a href="index.html">Accueil</a>
@@ -175,6 +199,62 @@
     }
     updateDistance();
   }
+const formLieu = document.getElementById('form-lieu');
+const latInput = document.getElementById('latInput');
+const lonInput = document.getElementById('lonInput');
+const popupTextInput = document.getElementById('popupTextInput');
+const iconInput = document.getElementById('iconInput');
+
+// Stocker les marqueurs des lieux ajoutés
+let lieuMarkers = [];
+
+// Fonction pour ajouter un marqueur lieu avec icône personnalisée
+function addLieuMarker(lat, lon, popupText, iconUrl) {
+  let icon = L.icon({
+    iconUrl: iconUrl || 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // icône par défaut si pas d'upload
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40]
+  });
+
+  const marker = L.marker([lat, lon], { icon: icon }).addTo(map).bindPopup(popupText);
+  lieuMarkers.push(marker);
+}
+
+// Gestion du formulaire d'ajout de lieu
+formLieu.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const lat = parseFloat(latInput.value);
+  const lon = parseFloat(lonInput.value);
+  const popupText = popupTextInput.value.trim();
+
+  if (isNaN(lat) || isNaN(lon) || !popupText) {
+    alert("Merci de remplir tous les champs correctement.");
+    return;
+  }
+
+  // Si fichier icône uploadé, on le convertit en URL local (data URL)
+  if (iconInput.files.length > 0) {
+    const file = iconInput.files[0];
+    if (file.size > 1024 * 1024) {
+      alert("La taille de l'image doit être inférieure à 1 Mo.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      addLieuMarker(lat, lon, popupText, event.target.result);
+      formLieu.reset();
+      map.panTo([lat, lon]);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    // Pas d'icône uploadée => icône par défaut
+    addLieuMarker(lat, lon, popupText);
+    formLieu.reset();
+    map.panTo([lat, lon]);
+  }
+});
 
   // Enregistrer la position actuelle dans Firestore
   async function savePosition(user, lat, lon) {
