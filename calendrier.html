@@ -109,7 +109,7 @@
  <nav>
     <a href="index.html">Accueil</a>
     <a href="calendrier.html">Calendrier</a>
-    <a href="carte.html">Carte</a>  <!-- <-- Lien ajouté -->
+    <a href="carte.html">Carte</a>
     <a href="photos.html">Photos</a>
   </nav>
 
@@ -124,8 +124,6 @@
     Titre de l'événement :
     <input type="text" id="titleInput" placeholder="Ex: Anniversaire" required />
   </label>
-
-  
   <button type="submit">Ajouter l'événement</button>
 </form>
 
@@ -213,6 +211,23 @@
       const ev = doc.data();
       if(!events[ev.date]) events[ev.date] = [];
       events[ev.date].push(ev.title);
+    });
+
+    // --- Récupération des anniversaires (format MM-DD, type = "anniversaire") ---
+    const birthdaysQuery = query(
+      collection(db, "evenements"),
+      where("type", "==", "🎂 Anniversaire Princesse")
+    );
+    const birthdaysSnapshot = await getDocs(birthdaysQuery);
+    birthdaysSnapshot.forEach(doc => {
+      const ev = doc.data();
+      // ev.date ici au format "MM-DD"
+      const [bMonth, bDay] = ev.date.split('-').map(Number);
+      if(bMonth === month + 1) {
+        const dateKey = `${year}-${String(bMonth).padStart(2,'0')}-${String(bDay).padStart(2,'0')}`;
+        if(!events[dateKey]) events[dateKey] = [];
+        events[dateKey].push(ev.title + " 🎂");
+      }
     });
 
     // Créer cases jour avec événements
