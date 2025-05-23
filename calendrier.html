@@ -106,25 +106,28 @@
 </head>
 <body>
 
- <nav>
-    <a href="index.html">Accueil</a>
-    <a href="calendrier.html">Calendrier</a>
-    <a href="carte.html">Carte</a>  <!-- <-- Lien ajouté -->
-    <a href="photos.html">Photos</a>
-  </nav>
+<nav>
+  <a href="index.html">Accueil</a>
+  <a href="calendrier.html">Calendrier</a>
+  <a href="carte.html">Carte</a>
+  <a href="photos.html">Photos</a>
+</nav>
 
 <h1>Calendrier d'amour 💖</h1>
 
 <form id="form-evenement">
   <label>
-    Date de l'événement :
-    <input type="date" id="dateInput" required />
+    Date de début :
+    <input type="date" id="startDateInput" required />
+  </label>
+  <label>
+    Date de fin :
+    <input type="date" id="endDateInput" required />
   </label>
   <label>
     Titre de l'événement :
     <input type="text" id="titleInput" placeholder="Ex: Anniversaire" required />
   </label>
-
   
   <button type="submit">Ajouter l'événement</button>
 </form>
@@ -156,7 +159,8 @@
 
   const calendarEl = document.getElementById('calendar');
   const form = document.getElementById('form-evenement');
-  const dateInput = document.getElementById('dateInput');
+  const startDateInput = document.getElementById('startDateInput');
+  const endDateInput = document.getElementById('endDateInput');
   const titleInput = document.getElementById('titleInput');
 
   const monthYearEl = document.getElementById('monthYear');
@@ -166,6 +170,15 @@
   let currentYear, currentMonth;
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+  function dateToStr(date) {
+    return date.toISOString().slice(0,10);
+  }
+
+  // Fonction pour vérifier si une date est dans une plage
+  function isDateInRange(dateStr, startStr, endStr) {
+    return (dateStr >= startStr) && (dateStr <= endStr);
+  }
 
   async function createCalendar(year, month) {
     calendarEl.innerHTML = '';
@@ -196,23 +209,33 @@
       calendarEl.appendChild(emptyCell);
     }
 
-    // Récupération événements du mois depuis Firestore
-    const firstDateStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
-    const lastDateStr = `${year}-${String(month+1).padStart(2,'0')}-${daysInMonth}`;
+    // On récupère les événements dont la plage de dates chevauche ce mois
+    // Pour cela on cherche events avec startDate <= lastDateOfMonth et endDate >= firstDateOfMonth
+    const firstDateOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
+    const lastDateOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+
+    // Récupération de tous les événements où startDate <= lastDateOfMonth
+    // et endDate >= firstDateOfMonth
+
+    // Firestore ne permet pas directement de faire un "between" sur deux champs, donc on fait deux requêtes filtrées (ou on récupère tous et filtre en JS).
+    // Pour simplifier ici, on récupère tous les événements dont startDate <= lastDateOfMonth,
+    // puis on filtre en JS ceux qui ont endDate >= firstDateOfMonth.
 
     const eventsQuery = query(
       collection(db, "evenements"),
-      where("date", ">=", firstDateStr),
-      where("date", "<=", lastDateStr),
-      orderBy("date")
+      where("startDate", "<=", lastDateOfMonthStr),
+      orderBy("startDate")
     );
 
     const eventsSnapshot = await getDocs(eventsQuery);
-    const events = {};
+    const events = [];
+
     eventsSnapshot.forEach(doc => {
       const ev = doc.data();
-      if(!events[ev.date]) events[ev.date] = [];
-      events[ev.date].push(ev.title);
+      // Filtre côté client : endDate >= firstDateOfMonthStr
+      if(ev.endDate >= firstDateOfMonthStr) {
+        events.push(ev);
+      }
     });
 
     // Créer cases jour avec événements
@@ -226,13 +249,15 @@
       dayCell.appendChild(dayNum);
 
       const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      if(events[dayStr]) {
-        for(const title of events[dayStr]) {
-          const eventEl = document.createElement('div');
-          eventEl.classList.add('event');
-          eventEl.textContent = title;
-          dayCell.appendChild(eventEl);
-        }
+
+      // Trouver les événements actifs ce jour-là
+      const eventsToday = events.filter(ev => isDateInRange(dayStr, ev.startDate, ev.endDate));
+
+      for(const ev of eventsToday) {
+        const eventEl = document.createElement('div');
+        eventEl.classList.add('event');
+        eventEl.textContent = ev.title;
+        dayCell.appendChild(eventEl);
       }
 
       calendarEl.appendChild(dayCell);
@@ -243,24 +268,42 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const dateVal = dateInput.value;
+    const startDateVal = startDateInput.value;
+    const endDateVal = endDateInput.value;
     const titleVal = titleInput.value.trim();
 
-    if(!dateVal || !titleVal) {
+    if(!startDateVal || !endDateVal || !titleVal) {
       alert("Merci de remplir tous les champs.");
+      return;
+    }
+
+    if(endDateVal < startDateVal) {
+      alert("La date de fin doit être postérieure ou égale à la date de début.");
       return;
     }
 
     try {
       await addDoc(collection(db, "evenements"), {
-        date: dateVal,
+        startDate: startDateVal,
+        endDate: endDateVal,
         title: titleVal
       });
       alert("Événement ajouté !");
       titleInput.value = '';
-      // Si l'événement est dans le mois affiché, on rafraîchit
-      const [y,m,d] = dateVal.split('-').map(Number);
-      if(y === currentYear && (m-1) === currentMonth) {
+      startDateInput.value = '';
+      endDateInput.value = '';
+
+      // Si l'événement chevauche le mois affiché, on rafraîchit
+      const [startY,startM] = startDateVal.split('-').map(Number);
+      const [endY,endM] = endDateVal.split('-').map(Number);
+
+      // On rafraîchit si start ou end est dans le mois affiché
+      if(
+        (startY === currentYear && (startM-1) === currentMonth) ||
+        (endY === currentYear && (endM-1) === currentMonth) ||
+        (startY < currentYear || (startY === currentYear && (startM-1) < currentMonth)) &&
+        (endY > currentYear || (endY === currentYear && (endM-1) > currentMonth))
+      ) {
         createCalendar(currentYear, currentMonth);
       }
     } catch(error) {
