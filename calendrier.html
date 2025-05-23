@@ -22,15 +22,40 @@
     text-decoration: underline;
     cursor: pointer;
   }
-  h1, h2 {
+  h1 {
     text-align: center;
+  }
+  #calendar-controls {
+    max-width: 700px;
+    margin: 1rem auto 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+  }
+  #monthYear {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  button.control-btn {
+    background: #ff6f91;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+  }
+  button.control-btn:hover {
+    background: #ff3c78;
   }
   #calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 5px;
     max-width: 700px;
-    margin: 1rem auto;
+    margin: 0.5rem auto 2rem;
     background: rgba(0,0,0,0.3);
     padding: 10px;
     border-radius: 10px;
@@ -67,14 +92,14 @@
     margin-bottom: 10px;
     font-size: 1rem;
   }
-  button {
+  button[type="submit"] {
     background: #ff6f91;
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
   }
-  button:hover {
+  button[type="submit"]:hover {
     background: #ff3c78;
   }
 </style>
@@ -100,6 +125,12 @@
   <button type="submit">Ajouter l'événement</button>
 </form>
 
+<div id="calendar-controls">
+  <button class="control-btn" id="prevMonthBtn">⬅️ Mois précédent</button>
+  <div id="monthYear">Mai 2025</div>
+  <button class="control-btn" id="nextMonthBtn">Mois suivant ➡️</button>
+</div>
+
 <div id="calendar"></div>
 
 <script type="module">
@@ -124,13 +155,21 @@
   const dateInput = document.getElementById('dateInput');
   const titleInput = document.getElementById('titleInput');
 
+  const monthYearEl = document.getElementById('monthYear');
+  const prevMonthBtn = document.getElementById('prevMonthBtn');
+  const nextMonthBtn = document.getElementById('nextMonthBtn');
+
   let currentYear, currentMonth;
 
-  // Fonction pour créer le calendrier et afficher les events
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
   async function createCalendar(year, month) {
     calendarEl.innerHTML = '';
 
-    // Titre des jours
+    // Mise à jour titre mois/année
+    monthYearEl.textContent = `${monthNames[month]} ${year}`;
+
+    // Titres jours de la semaine
     const daysOfWeek = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     for(let dayName of daysOfWeek) {
       const dayHeader = document.createElement('div');
@@ -140,26 +179,22 @@
       calendarEl.appendChild(dayHeader);
     }
 
-    // Date du premier jour du mois (lundi = 1, dimanche = 7)
+    // 1er jour du mois (dimanche = 0 en JS, on veut que lundi=1, dimanche=7)
     const firstDay = new Date(year, month, 1);
     let startDay = firstDay.getDay();
-    if(startDay === 0) startDay = 7; // dimanche = 7
+    if(startDay === 0) startDay = 7;
 
-    // Nombre de jours dans le mois
     const daysInMonth = new Date(year, month+1, 0).getDate();
 
-    // Ajouter cases vides avant le 1er jour (si le mois ne commence pas lundi)
+    // Cases vides avant le premier jour si besoin
     for(let i=1; i<startDay; i++) {
       const emptyCell = document.createElement('div');
       calendarEl.appendChild(emptyCell);
     }
 
-    // Récupérer tous les événements du mois depuis Firestore
+    // Récupération événements du mois depuis Firestore
     const firstDateStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
     const lastDateStr = `${year}-${String(month+1).padStart(2,'0')}-${daysInMonth}`;
-
-    // Firestore ne supporte pas directement des "between" sur dates string,
-    // on stockera la date au format "YYYY-MM-DD" pour faciliter la comparaison.
 
     const eventsQuery = query(
       collection(db, "evenements"),
@@ -176,7 +211,7 @@
       events[ev.date].push(ev.title);
     });
 
-    // Créer les cases pour chaque jour du mois
+    // Créer cases jour avec événements
     for(let day=1; day<=daysInMonth; day++) {
       const dayCell = document.createElement('div');
       dayCell.classList.add('day');
@@ -186,7 +221,6 @@
       dayNum.textContent = day;
       dayCell.appendChild(dayNum);
 
-      // Afficher les événements du jour
       const dayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       if(events[dayStr]) {
         for(const title of events[dayStr]) {
@@ -201,11 +235,11 @@
     }
   }
 
-  // Ajout d'un événement à Firestore
+  // Événement formulaire ajout
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const dateVal = dateInput.value;  // ex: "2024-08-14"
+    const dateVal = dateInput.value;
     const titleVal = titleInput.value.trim();
 
     if(!dateVal || !titleVal) {
@@ -221,14 +255,32 @@
       alert("Événement ajouté !");
       form.reset();
 
-      // Recréer calendrier avec les nouveaux événements
       createCalendar(currentYear, currentMonth);
     } catch (err) {
       alert("Erreur lors de l'ajout : " + err.message);
     }
   });
 
-  // Initialisation : afficher calendrier du mois courant
+  // Boutons mois précédent / suivant
+  prevMonthBtn.addEventListener('click', () => {
+    currentMonth--;
+    if(currentMonth < 0) {
+      currentMonth = 11;
+      currentYear--;
+    }
+    createCalendar(currentYear, currentMonth);
+  });
+
+  nextMonthBtn.addEventListener('click', () => {
+    currentMonth++;
+    if(currentMonth > 11) {
+      currentMonth = 0;
+      currentYear++;
+    }
+    createCalendar(currentYear, currentMonth);
+  });
+
+  // Init affichage calendrier mois courant
   const today = new Date();
   currentYear = today.getFullYear();
   currentMonth = today.getMonth();
