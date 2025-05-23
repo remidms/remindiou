@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Carte et Lieux Marquants</title>
+  <title>Carte et Enregistrement des Positions</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
@@ -24,16 +24,19 @@
     nav a:hover {
       text-decoration: underline;
     }
+
     #map { 
-      height: 60vh; 
+      height: 70vh; 
       margin: 1rem auto; 
       max-width: 900px;
     }
     #user-select {
-      margin: 10px auto;
+      margin: 10px;
       font-size: 1.1rem;
       display: block;
       max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
     }
     #status, #distance {
       margin: 10px auto;
@@ -41,44 +44,34 @@
       font-weight: bold;
       text-align: center;
       font-size: 1.1rem;
-      min-height: 1.5em;
-    }
-    form#form-lieu {
-      max-width: 900px;
-      margin: 1rem auto;
-      padding: 1rem;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background-color: #fafafa;
-    }
-    form#form-lieu label {
-      display: block;
-      margin: 0.5rem 0;
-    }
-    form#form-lieu input[type="number"],
-    form#form-lieu input[type="text"],
-    form#form-lieu input[type="file"] {
-      width: 100%;
-      padding: 0.4rem;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-    form#form-lieu button {
-      margin-top: 1rem;
-      padding: 0.6rem 1.2rem;
-      font-size: 1.1rem;
-      cursor: pointer;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 4px;
-    }
-    form#form-lieu button:hover {
-      background-color: #218838;
     }
   </style>
 </head>
 <body>
+<form id="form-lieu" style="max-width: 900px; margin: 20px auto; background: #eee; padding: 15px; border-radius: 8px;">
+  <h3>Ajouter un lieu marquant</h3>
+  <label>
+    Latitude:
+    <input type="number" step="any" id="latInput" required />
+  </label>
+  <br />
+  <label>
+    Longitude:
+    <input type="number" step="any" id="lonInput" required />
+  </label>
+  <br />
+  <label>
+    Texte à afficher :
+    <input type="text" id="popupTextInput" required />
+  </label>
+  <br />
+  <label>
+    Icône (image PNG/JPG, max 1Mo) :
+    <input type="file" id="iconInput" accept="image/png, image/jpeg" />
+  </label>
+  <br />
+  <button type="submit">Ajouter le lieu</button>
+</form>
 
 <nav>
   <a href="index.html">Accueil</a>
@@ -97,43 +90,21 @@
 <div id="map"></div>
 <div id="distance"></div>
 
-<form id="form-lieu">
-  <h3>Ajouter un lieu marquant</h3>
-  <label>
-    Latitude :
-    <input type="number" step="any" id="lat" required />
-  </label>
-  <label>
-    Longitude :
-    <input type="number" step="any" id="lon" required />
-  </label>
-  <label>
-    Texte à afficher :
-    <input type="text" id="popup-text" required />
-  </label>
-  <label>
-    Photo icône (optionnelle, max 1 Mo) :
-    <input type="file" id="icon-file" accept="image/*" />
-  </label>
-  <button type="submit">Ajouter le lieu</button>
-</form>
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- Firebase SDKs -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-storage-compat.js"></script>
 
 <script>
-  // Config Firebase (remplace par ta config si besoin)
   const firebaseConfig = {
     apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
     authDomain: "webremindiou.firebaseapp.com",
     projectId: "webremindiou",
     storageBucket: "webremindiou.appspot.com",
     messagingSenderId: "1041124249181",
-    appId: "1:104112424918:webfbc101314d86347b4",
+    appId: "1:104112424918fbc101314d86347b4",
     measurementId: "G-XCS133MJ63"
   };
 
@@ -141,7 +112,6 @@
   const db = firebase.firestore();
   const storage = firebase.storage();
 
-  // Initialisation carte Leaflet
   const map = L.map('map').setView([46.6, 1.8], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
@@ -151,11 +121,10 @@
   const userSelect = document.getElementById('user-select');
   const distanceDiv = document.getElementById('distance');
 
-  // Variables stockage positions et markers Rémi / India
-  let markers = {};
-  let positions = {};
+  let markers = {}; // { india: marker, remi: marker }
+  let positions = {}; // { india: {lat, lon}, remi: {lat, lon} }
 
-  // Icônes photos Rémi / India
+  // Icônes utilisateur fixes
   const icons = {
     india: L.icon({
       iconUrl: 'india.jpg',
@@ -171,7 +140,6 @@
     })
   };
 
-  // Ajouter ou mettre à jour un marker Rémi/India
   function addMarker(lat, lon, user) {
     if (markers[user]) {
       map.removeLayer(markers[user]);
@@ -182,18 +150,16 @@
     markers[user] = marker;
   }
 
-  // Calcul distance Haversine (km)
   function calculateDistance(lat1, lon1, lat2, lon2) {
     const toRad = angle => angle * Math.PI / 180;
     const R = 6371;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
-  // Mise à jour distance affichée
   function updateDistance() {
     if (positions.india && positions.remi) {
       const dist = calculateDistance(
@@ -206,10 +172,9 @@
     }
   }
 
-  // Charger positions Rémi / India et afficher
   async function loadPositions() {
     const users = ['india', 'remi'];
-    const bounds = [];
+    let bounds = [];
     for (const user of users) {
       try {
         const doc = await db.collection("positions").doc(user).get();
@@ -231,7 +196,103 @@
     updateDistance();
   }
 
-  // Enregistrer position utilisateur dans Firestore
+  // --- Partie ajout des lieux marquants avec Firestore & Storage ---
+
+  const formLieu = document.getElementById('form-lieu');
+  const latInput = document.getElementById('latInput');
+  const lonInput = document.getElementById('lonInput');
+  const popupTextInput = document.getElementById('popupTextInput');
+  const iconInput = document.getElementById('iconInput');
+
+  let lieuMarkers = [];
+
+  // Ajout d'un marqueur lieu
+  function addLieuMarker(lat, lon, popupText, iconUrl) {
+    const icon = L.icon({
+      iconUrl: iconUrl || 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -40]
+    });
+    const marker = L.marker([lat, lon], { icon }).addTo(map).bindPopup(popupText);
+    lieuMarkers.push(marker);
+  }
+
+  // Upload fichier dans Firebase Storage et retourne URL
+  async function uploadIconFile(file) {
+    const ref = storage.ref().child('icons/' + Date.now() + '_' + file.name);
+    await ref.put(file);
+    return await ref.getDownloadURL();
+  }
+
+  // Charger tous les lieux Firestore et les afficher
+  async function loadLieux() {
+    status.textContent = "Chargement des lieux marquants...";
+    try {
+      const snapshot = await db.collection('lieux').get();
+      lieuMarkers.forEach(m => map.removeLayer(m));
+      lieuMarkers = [];
+      if (snapshot.empty) {
+        status.textContent = "Aucun lieu enregistré.";
+        return;
+      }
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        addLieuMarker(data.lat, data.lon, data.popupText, data.iconUrl || null);
+      });
+      status.textContent = "Lieux chargés.";
+    } catch (err) {
+      console.error(err);
+      status.textContent = "Erreur chargement lieux.";
+    }
+  }
+
+  // Soumission formulaire ajout lieu
+  formLieu.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const lat = parseFloat(latInput.value);
+    const lon = parseFloat(lonInput.value);
+    const popupText = popupTextInput.value.trim();
+
+    if (isNaN(lat) || isNaN(lon) || !popupText) {
+      alert("Merci de remplir correctement tous les champs.");
+      return;
+    }
+
+    status.textContent = "Ajout du lieu en cours...";
+
+    try {
+      let iconUrl = null;
+      if (iconInput.files.length > 0) {
+        const file = iconInput.files[0];
+        if (file.size > 1024 * 1024) {
+          alert("L'icône doit faire moins de 1 Mo.");
+          status.textContent = "";
+          return;
+        }
+        iconUrl = await uploadIconFile(file);
+      }
+
+      await db.collection('lieux').add({
+        lat,
+        lon,
+        popupText,
+        iconUrl
+      });
+
+      addLieuMarker(lat, lon, popupText, iconUrl);
+      status.textContent = "Lieu ajouté avec succès !";
+      formLieu.reset();
+      map.panTo([lat, lon]);
+
+    } catch (err) {
+      console.error(err);
+      status.textContent = "Erreur lors de l'ajout du lieu.";
+    }
+  });
+
+  // Enregistrer la position GPS dans Firestore
   async function savePosition(user, lat, lon) {
     try {
       await db.collection("positions").doc(user).set({ lat, lon });
@@ -245,7 +306,7 @@
     }
   }
 
-  // Demander position GPS et enregistrer (quand sélection utilisateur change)
+  // Demander position GPS et enregistrer
   function askAndSavePosition(user) {
     if (!user) {
       status.textContent = "Veuillez choisir un utilisateur.";
@@ -275,97 +336,11 @@
     askAndSavePosition(user);
   });
 
-  // === Gestion lieux marquants ===
-  const formLieu = document.getElementById('form-lieu');
-  const latInput = document.getElementById('lat');
-  const lonInput = document.getElementById('lon');
-  const popupTextInput = document.getElementById('popup-text');
-  const iconInput = document.getElementById('icon-file');
-
-  // Ajout marker lieu marquant (icône personnalisée si fournie)
-  function addLieuMarker(lat, lon, popupText, iconUrl) {
-    let icon = null;
-    if (iconUrl) {
-      icon = L.icon({
-        iconUrl: iconUrl,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -40]
-      });
-    }
-    const marker = L.marker([lat, lon], icon ? { icon } : undefined).addTo(map);
-    marker.bindPopup(popupText);
-  }
-
-  // Upload image dans Firebase Storage, retourne l'URL publique
-  async function uploadIconFile(file) {
-    const storageRef = storage.ref();
-    const fileRef = storageRef.child('lieux-icons/' + Date.now() + '_' + file.name);
-    await fileRef.put(file);
-    return await fileRef.getDownloadURL();
-  }
-
-  // Submit formulaire ajout lieu
-  formLieu.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const lat = parseFloat(latInput.value);
-    const lon = parseFloat(lonInput.value);
-    const popupText = popupTextInput.value.trim();
-
-    if (isNaN(lat) || isNaN(lon) || !popupText) {
-      alert("Merci de remplir tous les champs correctement.");
-      return;
-    }
-
-    status.textContent = "Enregistrement du lieu en cours...";
-
-    try {
-      let iconUrl = null;
-      if (iconInput.files.length > 0) {
-        const file = iconInput.files[0];
-        if (file.size > 1024 * 1024) { // 1 Mo max
-          alert("La taille de l'image doit être inférieure à 1 Mo.");
-          status.textContent = "";
-          return;
-        }
-        iconUrl = await uploadIconFile(file);
-      }
-
-      await db.collection("lieux").add({
-        lat: lat,
-        lon: lon,
-        popupText: popupText,
-        iconUrl: iconUrl || null
-      });
-
-      addLieuMarker(lat, lon, popupText, iconUrl);
-      formLieu.reset();
-      map.panTo([lat, lon]);
-      status.textContent = "Lieu enregistré avec succès !";
-    } catch (error) {
-      console.error("Erreur lors de l'enregistrement :", error);
-      status.textContent = "Erreur lors de l'enregistrement du lieu.";
-    }
-  });
-
-  // Charger tous les lieux marquants et les afficher sur la carte
-  async function loadLieux() {
-    try {
-      const snapshot = await db.collection("lieux").get();
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        addLieuMarker(data.lat, data.lon, data.popupText, data.iconUrl);
-      });
-    } catch (error) {
-      console.error("Erreur lors du chargement des lieux :", error);
-    }
-  }
-
-  // Initialisation : chargement positions et lieux
+  // Chargement initial
   loadPositions();
   loadLieux();
 
 </script>
+
 </body>
 </html>
