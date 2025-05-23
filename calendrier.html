@@ -214,11 +214,7 @@
     const firstDateOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-01`;
     const lastDateOfMonthStr = `${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
 
-    // Récupération de tous les événements où startDate <= lastDateOfMonth
-    // et endDate >= firstDateOfMonth
-
-    // Firestore ne permet pas directement de faire un "between" sur deux champs, donc on fait deux requêtes filtrées (ou on récupère tous et filtre en JS).
-    // Pour simplifier ici, on récupère tous les événements dont startDate <= lastDateOfMonth,
+    // Récupération de tous les événements où startDate <= lastDateOfMonth,
     // puis on filtre en JS ceux qui ont endDate >= firstDateOfMonth.
 
     const eventsQuery = query(
@@ -262,6 +258,36 @@
 
       calendarEl.appendChild(dayCell);
     }
+  }
+
+  // Fonction notification pour événements du jour
+  async function notifyTodayEvents() {
+    if(Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
+    if(Notification.permission !== "granted") {
+      return;
+    }
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    const eventsQuery = query(
+      collection(db, "evenements"),
+      where("startDate", "<=", todayStr),
+      orderBy("startDate")
+    );
+
+    const snapshot = await getDocs(eventsQuery);
+    snapshot.forEach(doc => {
+      const ev = doc.data();
+      // Vérifier que today est dans la plage startDate - endDate
+      if(ev.endDate >= todayStr) {
+        new Notification("Événement aujourd'hui 💖", {
+          body: ev.title,
+          icon: "https://webremindiou.firebaseapp.com/icon.png"
+        });
+      }
+    });
   }
 
   // Événement formulaire ajout
@@ -335,6 +361,10 @@
   currentYear = now.getFullYear();
   currentMonth = now.getMonth();
   createCalendar(currentYear, currentMonth);
+
+  // Appel notification événements du jour
+  notifyTodayEvents();
+
 </script>
 
 </body>
