@@ -6,185 +6,209 @@
   <title>Carte et Enregistrement des Positions</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+    }
     nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: white; /* fond blanc pour le ruban */
       padding: 10px 15px;
+      background-color: #eee;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      z-index: 1000;
     }
     nav a {
-      color: #000; /* texte noir */
-      text-decoration: none;
       margin-right: 15px;
+      color: black;
+      text-decoration: none;
       font-weight: bold;
-      font-family: Arial, sans-serif;
     }
     nav a:hover {
       text-decoration: underline;
     }
 
-    body {
-      margin: 0;
-      padding-top: 50px; /* espace sous le nav fixe */
-      font-family: Arial, sans-serif;
+    #map { 
+      height: 70vh; 
+      margin: 1rem auto; 
+      max-width: 900px;
     }
-
     #user-select {
-      margin: 10px 15px;
+      margin: 10px;
       font-size: 1.1rem;
       display: block;
-      max-width: 200px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
     }
-
-    #status {
-      margin: 10px 15px;
+    #status, #distance {
+      margin: 10px auto;
+      max-width: 900px;
       font-weight: bold;
-      color: black;
-    }
-
-    #map { 
-      height: 80vh; 
-      margin: 10px 15px 20px 15px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      text-align: center;
+      font-size: 1.1rem;
     }
   </style>
 </head>
 <body>
 
-  <nav>
-    <a href="index.html">Accueil</a>
-    <a href="calendrier.html">Calendrier</a>
-    <a href="carte.html">Carte</a>
-  </nav>
+<nav>
+  <a href="index.html">Accueil</a>
+  <a href="calendrier.html">Calendrier</a>
+  <a href="carte.html">Carte</a>
+</nav>
 
-  <select id="user-select">
-    <option value="">-- Choisis un utilisateur --</option>
-    <option value="india">India</option>
-    <option value="remi">Rémi</option>
-  </select>
+<select id="user-select">
+  <option value="">-- Choisis un utilisateur --</option>
+  <option value="india">India</option>
+  <option value="remi">Rémi</option>
+</select>
 
-  <div id="status"></div>
-  <div id="map"></div>
+<div id="status"></div>
+<div id="map"></div>
+<div id="distance"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
-      authDomain: "webremindiou.firebaseapp.com",
-      projectId: "webremindiou",
-      storageBucket: "webremindiou.firebasestorage.app",
-      messagingSenderId: "1041124249181",
-      appId: "1:104112424918fbc101314d86347b4",
-      measurementId: "G-XCS133MJ63"
-    };
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
+    authDomain: "webremindiou.firebaseapp.com",
+    projectId: "webremindiou",
+    storageBucket: "webremindiou.firebasestorage.app",
+    messagingSenderId: "1041124249181",
+    appId: "1:104112424918fbc101314d86347b4",
+    measurementId: "G-XCS133MJ63"
+  };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    const map = L.map('map').setView([46.6, 1.8], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+  const map = L.map('map').setView([46.6, 1.8], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
 
-    const status = document.getElementById('status');
-    const userSelect = document.getElementById('user-select');
+  const status = document.getElementById('status');
+  const userSelect = document.getElementById('user-select');
+  const distanceDiv = document.getElementById('distance');
 
-    let markers = {}; // stocke les marqueurs { india: marker, remi: marker }
+  let markers = {}; // { india: marker, remi: marker }
+  let positions = {}; // { india: {lat, lon}, remi: {lat, lon} }
 
-    // Fonction pour afficher un marqueur selon l'utilisateur
-    function addMarker(lat, lon, user) {
-      const colors = { india: 'pink', remi: 'blue' };
-      if (markers[user]) {
-        map.removeLayer(markers[user]);
-      }
-      const marker = L.circleMarker([lat, lon], {
-        radius: 10,
-        color: colors[user],
-        fillColor: colors[user],
-        fillOpacity: 0.8
-      }).addTo(map).bindPopup(`${user.charAt(0).toUpperCase() + user.slice(1)} est ici`);
-      markers[user] = marker;
+  // Ajouter un marqueur coloré
+  function addMarker(lat, lon, user) {
+    const colors = { india: 'pink', remi: 'blue' };
+    if (markers[user]) {
+      map.removeLayer(markers[user]);
     }
+    const marker = L.circleMarker([lat, lon], {
+      radius: 10,
+      color: colors[user],
+      fillColor: colors[user],
+      fillOpacity: 0.8
+    }).addTo(map).bindPopup(`${user.charAt(0).toUpperCase() + user.slice(1)} est ici`);
+    markers[user] = marker;
+  }
 
-    // Charger toutes les positions depuis Firestore et afficher les marqueurs
-    async function loadPositions() {
-      const users = ['india', 'remi'];
-      let bounds = [];
-      for (const user of users) {
-        try {
-          const doc = await db.collection("positions").doc(user).get();
-          if (doc.exists) {
-            const data = doc.data();
-            addMarker(data.lat, data.lon, user);
-            bounds.push([data.lat, data.lon]);
-          }
-        } catch (error) {
-          console.error("Erreur Firestore:", error);
-        }
-      }
-      if (bounds.length === 1) {
-        map.setView(bounds[0], 13);
-      } else if (bounds.length > 1) {
-        map.fitBounds(bounds);
-      }
+  // Calcul de la distance entre 2 points (Haversine en km)
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const toRad = angle => angle * Math.PI / 180;
+    const R = 6371; // Rayon Terre en km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Affiche la distance entre India et Rémi si les deux positions sont disponibles
+  function updateDistance() {
+    if (positions.india && positions.remi) {
+      const dist = calculateDistance(
+        positions.india.lat, positions.india.lon,
+        positions.remi.lat, positions.remi.lon
+      );
+      distanceDiv.textContent = `Distance entre India et Rémi : ${dist.toFixed(2)} km`;
+    } else {
+      distanceDiv.textContent = '';
     }
+  }
 
-    // Enregistrer la position actuelle dans Firestore pour l'utilisateur sélectionné
-    async function savePosition(user, lat, lon) {
+  // Charger toutes les positions et afficher marqueurs + distance
+  async function loadPositions() {
+    const users = ['india', 'remi'];
+    let bounds = [];
+    for (const user of users) {
       try {
-        await db.collection("positions").doc(user).set({ lat, lon });
-        status.textContent = `Position de ${user.charAt(0).toUpperCase() + user.slice(1)} enregistrée !`;
-        addMarker(lat, lon, user);
+        const doc = await db.collection("positions").doc(user).get();
+        if (doc.exists) {
+          const data = doc.data();
+          positions[user] = { lat: data.lat, lon: data.lon };
+          addMarker(data.lat, data.lon, user);
+          bounds.push([data.lat, data.lon]);
+        }
       } catch (error) {
-        status.textContent = "Erreur lors de l'enregistrement de la position.";
+        console.error("Erreur Firestore:", error);
+      }
+    }
+    if (bounds.length === 1) {
+      map.setView(bounds[0], 13);
+    } else if (bounds.length > 1) {
+      map.fitBounds(bounds);
+    }
+    updateDistance();
+  }
+
+  // Enregistrer la position actuelle dans Firestore
+  async function savePosition(user, lat, lon) {
+    try {
+      await db.collection("positions").doc(user).set({ lat, lon });
+      status.textContent = `Position de ${user.charAt(0).toUpperCase() + user.slice(1)} enregistrée !`;
+      positions[user] = { lat, lon };
+      addMarker(lat, lon, user);
+      updateDistance();
+    } catch (error) {
+      status.textContent = "Erreur lors de l'enregistrement de la position.";
+      console.error(error);
+    }
+  }
+
+  // Demander la position GPS et enregistrer
+  function askAndSavePosition(user) {
+    if (!user) {
+      status.textContent = "Veuillez choisir un utilisateur.";
+      return;
+    }
+    if (!navigator.geolocation) {
+      status.textContent = "Géolocalisation non supportée par ce navigateur.";
+      return;
+    }
+    status.textContent = "Récupération de la position…";
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        savePosition(user, lat, lon);
+      },
+      error => {
+        status.textContent = "Impossible de récupérer la position.";
         console.error(error);
       }
-    }
+    );
+  }
 
-    // Demander la position GPS et enregistrer
-    function askAndSavePosition(user) {
-      if (!user) {
-        status.textContent = "Veuillez choisir un utilisateur.";
-        return;
-      }
-      if (!navigator.geolocation) {
-        status.textContent = "Géolocalisation non supportée par ce navigateur.";
-        return;
-      }
-      status.textContent = "Récupération de la position…";
+  userSelect.addEventListener('change', () => {
+    const user = userSelect.value;
+    askAndSavePosition(user);
+  });
 
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          savePosition(user, lat, lon);
-        },
-        error => {
-          status.textContent = "Impossible de récupérer la position.";
-          console.error(error);
-        }
-      );
-    }
-
-    // Au changement de sélection utilisateur, on enregistre la position actuelle
-    userSelect.addEventListener('change', () => {
-      const user = userSelect.value;
-      askAndSavePosition(user);
-    });
-
-    // Au chargement de la page, on charge les positions stockées
-    loadPositions();
-  </script>
+  loadPositions();
+</script>
 
 </body>
 </html>
