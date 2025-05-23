@@ -1,110 +1,141 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head><meta charset="UTF-8" /><title>Multi Upload progressif</title></head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Page Photos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    nav {
+      padding: 10px 15px;
+      background-color: #eee;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    nav a {
+      margin-right: 15px;
+      color: black;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    nav a.active {
+      text-decoration: underline;
+      font-weight: bolder;
+      color: #000;
+    }
+    #gallery img {
+      max-width: 150px;
+      margin: 10px;
+      border-radius: 8px;
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
 <body>
+
+<nav>
+  <a href="index.html">Accueil</a>
+  <a href="calendrier.html">Calendrier</a>
+  <a href="carte.html">Carte</a>
+  <a href="photos.html" class="active">Photos</a>
+</nav>
+
+<h1>Ajouter des photos</h1>
 
 <input type="file" id="photo-input" accept="image/*" multiple />
 <button id="upload-btn">Uploader</button>
 <div id="status"></div>
-<div id="selected-list"></div>
+
+<h2>Galerie</h2>
 <div id="gallery"></div>
 
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
 <script>
-const firebaseConfig = {
-  // ta config Firebase ici
-};
+  // Config Firebase (à remplacer par ta config)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAMn2TZKfGKkqTLi-PttISA1v2gg-rIeJo",
+    authDomain: "webremindiou.firebaseapp.com",
+    projectId: "webremindiou",
+    storageBucket: "webremindiou.appspot.com",
+    messagingSenderId: "1041124249181",
+    appId: "1:104112424918fbc101314d86347b4",
+  };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-const photoInput = document.getElementById('photo-input');
-const uploadBtn = document.getElementById('upload-btn');
-const status = document.getElementById('status');
-const selectedList = document.getElementById('selected-list');
-const gallery = document.getElementById('gallery');
+  const photoInput = document.getElementById('photo-input');
+  const uploadBtn = document.getElementById('upload-btn');
+  const status = document.getElementById('status');
+  const gallery = document.getElementById('gallery');
 
-let filesToUpload = [];
-
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function updateSelectedList() {
-  selectedList.innerHTML = '';
-  filesToUpload.forEach((file, i) => {
-    const div = document.createElement('div');
-    div.textContent = `${file.name} `;
-    const btn = document.createElement('button');
-    btn.textContent = "Supprimer";
-    btn.onclick = () => {
-      filesToUpload.splice(i, 1);
-      updateSelectedList();
-    };
-    div.appendChild(btn);
-    selectedList.appendChild(div);
-  });
-}
-
-photoInput.addEventListener('change', () => {
-  // Ajouter les nouveaux fichiers à la liste (en évitant doublons par nom)
-  for(const f of photoInput.files) {
-    if (!filesToUpload.some(file => file.name === f.name && file.size === f.size)) {
-      filesToUpload.push(f);
-    }
-  }
-  updateSelectedList();
-  // Reset input pour pouvoir re-sélectionner mêmes fichiers si besoin
-  photoInput.value = '';
-});
-
-uploadBtn.onclick = async () => {
-  if (filesToUpload.length === 0) {
-    status.textContent = "Aucune photo sélectionnée.";
-    return;
-  }
-  status.textContent = `Upload de ${filesToUpload.length} photos en cours...`;
-  try {
-    for (const file of filesToUpload) {
-      console.log("Upload de : ", file.name);
-      const base64 = await readFileAsBase64(file);
-      await db.collection('photos').add({
-        name: file.name,
-        data: base64,
-        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+  // Charger toutes les photos et les afficher
+  async function loadPhotos() {
+    gallery.innerHTML = '';
+    try {
+      const snapshot = await db.collection('photos').orderBy('uploadedAt', 'desc').get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const img = document.createElement('img');
+        img.src = data.data;  // la donnée base64
+        img.alt = data.name || 'Photo';
+        gallery.appendChild(img);
       });
+    } catch (e) {
+      console.error("Erreur chargement photos:", e);
     }
-    status.textContent = "Upload terminé !";
-    filesToUpload = [];
-    updateSelectedList();
-    loadPhotos();
-  } catch (err) {
-    console.error(err);
-    status.textContent = "Erreur lors de l'upload.";
   }
-};
 
-async function loadPhotos() {
-  gallery.innerHTML = '';
-  const snapshot = await db.collection('photos').orderBy('uploadedAt', 'desc').get();
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const img = document.createElement('img');
-    img.src = data.data;
-    img.style.maxWidth = "150px";
-    img.style.margin = "5px";
-    gallery.appendChild(img);
+  // Fonction utilitaire pour lire un fichier en base64
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  uploadBtn.addEventListener('click', async () => {
+    const files = photoInput.files;
+    if (files.length === 0) {
+      status.textContent = "Sélectionnez au moins une photo.";
+      return;
+    }
+
+    status.textContent = `Upload de ${files.length} photo(s) en cours...`;
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const docRef = db.collection('photos').doc();
+        await docRef.set({
+          name: file.name,
+          data: await readFileAsBase64(file),
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      await Promise.all(uploadPromises);
+
+      status.textContent = "Toutes les photos ont été uploadées avec succès !";
+      loadPhotos();
+    } catch (error) {
+      console.error(error);
+      status.textContent = "Erreur lors de l'upload.";
+    }
   });
-}
 
-loadPhotos();
+  // Chargement initial de la galerie
+  loadPhotos();
 </script>
 
 </body>
