@@ -8,29 +8,48 @@
       font-family: Arial, sans-serif;
       padding: 2rem;
       text-align: center;
-      background: #ffe6f0;
-      color: #333;
+      background-image: url('accueil.jpg'); /* même image de fond */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: #fff;
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      position: relative;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+    }
+    nav {
+      position: absolute;
+      top: 15px;
+      left: 15px;
     }
     nav a {
-      margin: 0 10px;
+      color: #fff;
       text-decoration: none;
-      color: #ff3366;
+      margin-right: 15px;
       font-weight: bold;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     }
     nav a:hover {
       text-decoration: underline;
     }
     h1 {
       margin-bottom: 1rem;
-      color: #ff3366;
+      color: #fff;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
     }
     #calendar {
       max-width: 350px;
       margin: 0 auto;
-      background: white;
+      background: rgba(255, 255, 255, 0.85); /* fond clair translucide pour lisibilité */
       border-radius: 10px;
       padding: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      color: #333;
+      user-select: none;
     }
     #calendar table {
       width: 100%;
@@ -69,7 +88,7 @@
 <body>
 
   <nav>
-    <a href="index.html">Accueil</a> |
+    <a href="index.html">Accueil</a>
     <a href="calendrier.html">Calendrier</a>
   </nav>
 
@@ -131,7 +150,6 @@
               cell.classList.add('today');
             }
 
-            // Tu peux ici ajouter un événement au clic si tu veux
             cell.addEventListener('click', () => {
               alert(`Tu as cliqué sur le ${date} ${monthYear.textContent}`);
             });
