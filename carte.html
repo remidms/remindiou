@@ -48,6 +48,7 @@
   </style>
 </head>
 <body>
+
 <form id="form-lieu" style="max-width: 900px; margin: 20px auto; background: #eee; padding: 15px; border-radius: 8px;">
   <h3>Ajouter un lieu marquant</h3>
   <label>
@@ -91,11 +92,8 @@
 <div id="distance"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-storage-compat.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -110,7 +108,6 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  const storage = firebase.storage();
 
   const map = L.map('map').setView([46.6, 1.8], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -121,10 +118,9 @@
   const userSelect = document.getElementById('user-select');
   const distanceDiv = document.getElementById('distance');
 
-  let markers = {}; // { india: marker, remi: marker }
-  let positions = {}; // { india: {lat, lon}, remi: {lat, lon} }
+  let markers = {};
+  let positions = {};
 
-  // Icônes utilisateur fixes
   const icons = {
     india: L.icon({
       iconUrl: 'india.jpg',
@@ -141,9 +137,7 @@
   };
 
   function addMarker(lat, lon, user) {
-    if (markers[user]) {
-      map.removeLayer(markers[user]);
-    }
+    if (markers[user]) map.removeLayer(markers[user]);
     const marker = L.marker([lat, lon], { icon: icons[user] })
       .addTo(map)
       .bindPopup(`${user.charAt(0).toUpperCase() + user.slice(1)} est ici`);
@@ -196,8 +190,6 @@
     updateDistance();
   }
 
-  // --- Partie ajout des lieux marquants avec Firestore & Storage ---
-
   const formLieu = document.getElementById('form-lieu');
   const latInput = document.getElementById('latInput');
   const lonInput = document.getElementById('lonInput');
@@ -206,10 +198,9 @@
 
   let lieuMarkers = [];
 
-  // Ajout d'un marqueur lieu
-  function addLieuMarker(lat, lon, popupText, iconUrl) {
+  function addLieuMarker(lat, lon, popupText, iconData) {
     const icon = L.icon({
-      iconUrl: iconUrl || 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+      iconUrl: iconData || 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
       iconSize: [40, 40],
       iconAnchor: [20, 40],
       popupAnchor: [0, -40]
@@ -218,14 +209,6 @@
     lieuMarkers.push(marker);
   }
 
-  // Upload fichier dans Firebase Storage et retourne URL
-  async function uploadIconFile(file) {
-    const ref = storage.ref().child('icons/' + Date.now() + '_' + file.name);
-    await ref.put(file);
-    return await ref.getDownloadURL();
-  }
-
-  // Charger tous les lieux Firestore et les afficher
   async function loadLieux() {
     status.textContent = "Chargement des lieux marquants...";
     try {
@@ -238,7 +221,7 @@
       }
       snapshot.forEach(doc => {
         const data = doc.data();
-        addLieuMarker(data.lat, data.lon, data.popupText, data.iconUrl || null);
+        addLieuMarker(data.lat, data.lon, data.popupText, data.iconData || null);
       });
       status.textContent = "Lieux chargés.";
     } catch (err) {
@@ -247,7 +230,6 @@
     }
   }
 
-  // Soumission formulaire ajout lieu
   formLieu.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -263,7 +245,7 @@
     status.textContent = "Ajout du lieu en cours...";
 
     try {
-      let iconUrl = null;
+      let iconData = null;
       if (iconInput.files.length > 0) {
         const file = iconInput.files[0];
         if (file.size > 1024 * 1024) {
@@ -271,17 +253,22 @@
           status.textContent = "";
           return;
         }
-        iconUrl = await uploadIconFile(file);
+        iconData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       }
 
       await db.collection('lieux').add({
         lat,
         lon,
         popupText,
-        iconUrl
+        iconData
       });
 
-      addLieuMarker(lat, lon, popupText, iconUrl);
+      addLieuMarker(lat, lon, popupText, iconData);
       status.textContent = "Lieu ajouté avec succès !";
       formLieu.reset();
       map.panTo([lat, lon]);
@@ -292,7 +279,6 @@
     }
   });
 
-  // Enregistrer la position GPS dans Firestore
   async function savePosition(user, lat, lon) {
     try {
       await db.collection("positions").doc(user).set({ lat, lon });
@@ -306,7 +292,6 @@
     }
   }
 
-  // Demander position GPS et enregistrer
   function askAndSavePosition(user) {
     if (!user) {
       status.textContent = "Veuillez choisir un utilisateur.";
@@ -336,7 +321,6 @@
     askAndSavePosition(user);
   });
 
-  // Chargement initial
   loadPositions();
   loadLieux();
 
